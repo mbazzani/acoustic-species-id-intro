@@ -21,6 +21,7 @@ def stratified_random_sample(path):
     try:
         data = pd.read_csv(path)
     except:
+        print("Reading file failed")
         return False
 
     #Drop problematic recordings
@@ -36,10 +37,12 @@ def stratified_random_sample(path):
     data.pop('Hour')
 
     if(len(data)<MIN_NUM_AUDIOMOTHS*NUM_HOURS):
+        print("Not enough data to sample")
         return False
 
     try:
         data.to_csv(path[:-4]+"_Sample.csv", index=False)
         return True
     except:
+        print("Writing file failed")
         return False
