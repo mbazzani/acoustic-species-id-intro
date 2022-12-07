@@ -28,7 +28,6 @@ def stratified_random_sample(path):
     #Drop problematic recordings
     data = data[data['Error'].isna()]
     data = data[data['Duration']>=60]
-    print(len(data)//24)
     #From each audiomoth, randomly sample one clip from each hour
     data['Hour'] = extract_hour(data['Comment'])
     data = data.groupby(['AudioMothCode','Hour'], as_index=False, group_keys=False).apply(lambda x: x.sample(1))
