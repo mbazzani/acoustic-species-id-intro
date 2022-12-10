@@ -3,31 +3,11 @@ import re
 NUM_HOURS = 24
 MIN_NUM_AUDIOMOTHS = 2
 
-# Make more robust for finding hour
-#def extract_hour(time_list):
-#    hour_list = []
-#    for time in time_list:
-#        time = time[12:14] + time[15:17]
-#        hour_list.append(int(time)//100)
-#    return hour_list
-def extract_hour(data):
-    hour_list = []
-    hour_regex = "([0-2][0-9]:[0-5][0-9]){0}"
-    for index, row in data.iterrows():
-        if (hour := re.search("([0-2][0-9]:[0-5][0-9]){1}", str(row['StartDateTime']))) is not None:
-            # print(hour.group())
-            hour = (int(hour.group()[:2]+hour.group()[3:]))//100
-            hour_list.append(hour)
-        elif (hour := re.search("([0-2][0-9]:[0-5][0-9]){1}", str(row['Comment']))) is not None:
-            # print(hour.group())
-            hour = (int(hour.group()[:2]+hour.group()[3:]))//100
-            hour_list.append(hour)
-        else:
-            data.drop(index)
+# Returns time found in string rounded to the nearest hour
+def extract_hour(string):
+    string = re.search("([0-2][0-9]:[0-5][0-9]){1}", string)
+    return int(string.group()[:2]+string.group()[3:])//100
 
-    data['Hour'] = hour_list
-    print(data)
-    return data
 
 #######################################################################################################
 #    Takes in csv path and writes a new csv file with a stratified random sample of the original csv.
@@ -49,13 +29,14 @@ def stratified_random_sample(path):
     data = data[data['Error'].isna()]
     data = data[data['Duration']>=60]
 
-    # print(type(data['Comment', 'StartDateTime']))
-    # print(data['Comment', 'StartDateTime'])
+    #Extract hour values from StartDateTime if present, or Comment otherwise
+    start_times = data['StartDateTime'].transform((lambda x: extract_hour(x) if pd.notnull(x) else x))
+    comment_times = data['Comment'].transform((lambda x: extract_hour(x) if pd.notnull(x) else x))
+    data['Hour'] = start_times.combine_first(comment_times)
+
     #From each audiomoth, randomly sample one clip from each hour
-    data = extract_hour(data)
-    print(data)
     data = data.groupby(['AudioMothCode','Hour'], as_index=False, group_keys=False).apply(lambda x: x.sample(1))
-    print(data)
+
     #Drop audiomoths that did not have all hours
     data = data.groupby('AudioMothCode').filter(lambda x: len(x)==NUM_HOURS)
     data.pop('Hour')
@@ -67,7 +48,7 @@ def stratified_random_sample(path):
         return False
 
     try:
-        #data.to_csv(path[:-4]+"_Sample.csv", index=False)
+        data.to_csv(path[:-4]+"_Sample.csv", index=False)
         return True
     except:
         print("Writing file failed")
